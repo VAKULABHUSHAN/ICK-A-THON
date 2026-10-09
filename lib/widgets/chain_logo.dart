@@ -4,19 +4,15 @@ import '../theme/app_colors.dart';
 class ChainLogo extends StatelessWidget {
   final double size;
   final bool showTagline;
-  final Color? color;
 
   const ChainLogo({
     super.key,
     this.size = 36,
     this.showTagline = false,
-    this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = color ?? AppColors.primary;
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -25,9 +21,19 @@ class ChainLogo extends StatelessWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: primaryColor.withOpacity(0.12),
+            gradient: const LinearGradient(
+              colors: [AppColors.primary, AppColors.primaryDark],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             shape: BoxShape.circle,
-            border: Border.all(color: primaryColor.withOpacity(0.3), width: 1.5),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x306516D5),
+                blurRadius: 8,
+                offset: Offset(0, 3),
+              ),
+            ],
           ),
           child: Stack(
             alignment: Alignment.center,
@@ -35,7 +41,7 @@ class ChainLogo extends StatelessWidget {
               Icon(
                 Icons.link_rounded,
                 size: size * 0.58,
-                color: primaryColor,
+                color: Colors.white,
               ),
               Positioned(
                 right: 3,
@@ -44,13 +50,13 @@ class ChainLogo extends StatelessWidget {
                   width: size * 0.28,
                   height: size * 0.28,
                   decoration: const BoxDecoration(
-                    color: AppColors.accent,
+                    color: AppColors.lavender,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.medication_rounded,
                     size: size * 0.18,
-                    color: AppColors.primaryDark,
+                    color: AppColors.primary,
                   ),
                 ),
               ),
@@ -78,7 +84,7 @@ class ChainLogo extends StatelessWidget {
                   style: TextStyle(
                     fontSize: size * 0.56,
                     fontWeight: FontWeight.w800,
-                    color: primaryColor,
+                    color: AppColors.primary,
                     letterSpacing: -0.5,
                   ),
                 ),
@@ -86,12 +92,12 @@ class ChainLogo extends StatelessWidget {
             ),
             if (showTagline)
               Text(
-                'THE IDENTITY SURVIVES',
+                'THE IDENTITY THAT SURVIVES',
                 style: TextStyle(
-                  fontSize: size * 0.26,
+                  fontSize: size * 0.24,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textSecondary,
-                  letterSpacing: 1.2,
+                  letterSpacing: 1.0,
                 ),
               ),
           ],

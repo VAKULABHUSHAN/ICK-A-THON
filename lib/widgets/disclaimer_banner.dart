@@ -12,9 +12,9 @@ class DisclaimerBanner extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.all(compact ? 10 : 12),
       decoration: BoxDecoration(
-        color: AppColors.infoBg.withOpacity(0.5),
+        color: AppColors.infoBg.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.info.withOpacity(0.3)),
+        border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -27,7 +27,7 @@ class DisclaimerBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Identity Trace Notice: QR codes preserve batch identity, trace split portions, and check recall warnings. They do not independently verify chemical purity or physical safety.',
+              'ExpiryChain helps you organize family medicines, track remaining quantities, record doses, and receive expiry alerts using visible packaging photos and text search.',
               style: TextStyle(
                 fontSize: compact ? 11 : 12,
                 color: AppColors.textSecondary,

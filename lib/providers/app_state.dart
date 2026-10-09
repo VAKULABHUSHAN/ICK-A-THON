@@ -1,99 +1,90 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/medicine_item.dart';
-import '../models/item_event.dart';
-import '../repositories/expiry_repository.dart';
-import '../repositories/mock_expiry_repository.dart';
-import '../repositories/supabase_expiry_repository.dart';
-
-enum InventoryFilter {
-  all,
-  expiringSoon,
-  expired,
-  recalled,
-}
+import '../models/medicine.dart';
+import '../models/family_member.dart';
+import '../models/medicine_history.dart';
+import '../repositories/medicine_repository.dart';
+import '../repositories/mock_medicine_repository.dart';
+import '../repositories/supabase_medicine_repository.dart';
 
 class AppState extends ChangeNotifier {
-  late ExpiryRepository _repository;
+  late MedicineRepository _repository;
   bool _isMockMode = true;
   bool _isSupabaseInitialized = false;
 
-  List<MedicineItem> _inventory = [];
-  List<ItemEvent> _events = [];
+  List<Medicine> _medicines = [];
+  List<FamilyMember> _familyMembers = [];
   bool _isLoading = false;
   String? _errorMessage;
-  
+
+  String? _selectedFamilyMemberId; // null = "All"
   String _searchQuery = '';
-  InventoryFilter _selectedFilter = InventoryFilter.all;
 
   AppState() {
-    _repository = MockExpiryRepository();
+    _repository = MockMedicineRepository();
     _tryInitSupabase();
     refreshData();
   }
 
   bool get isMockMode => _isMockMode;
   bool get isSupabaseInitialized => _isSupabaseInitialized;
-  List<MedicineItem> get inventory => _inventory;
-  List<ItemEvent> get events => _events;
+  List<Medicine> get medicines => _medicines;
+  List<FamilyMember> get familyMembers => _familyMembers;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  String? get selectedFamilyMemberId => _selectedFamilyMemberId;
   String get searchQuery => _searchQuery;
-  InventoryFilter get selectedFilter => _selectedFilter;
 
-  List<MedicineItem> get filteredInventory {
-    return _inventory.where((item) {
-      final batch = item.batch;
-      if (batch == null) return false;
-
-      final matchesSearch = _searchQuery.isEmpty ||
-          batch.medicineName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          batch.batchNumber.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (item.location ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
-
-      if (!matchesSearch) return false;
-
-      switch (_selectedFilter) {
-        case InventoryFilter.all:
-          return true;
-        case InventoryFilter.expiringSoon:
-          return batch.isExpiringSoon && !batch.isExpired;
-        case InventoryFilter.expired:
-          return batch.isExpired;
-        case InventoryFilter.recalled:
-          return batch.isRecalled;
+  // Filtered medicines list
+  List<Medicine> get filteredMedicines {
+    return _medicines.where((med) {
+      if (med.status == 'archived') return false;
+      if (_selectedFamilyMemberId != null && med.familyMemberId != _selectedFamilyMemberId) {
+        return false;
       }
+      if (_searchQuery.trim().isNotEmpty) {
+        final kw = _searchQuery.trim().toLowerCase();
+        final matchesName = med.name.toLowerCase().contains(kw);
+        final matchesBatch = (med.batchNumber ?? '').toLowerCase().contains(kw);
+        final matchesCat = med.category.toLowerCase().contains(kw);
+        final matchesMfr = (med.manufacturer ?? '').toLowerCase().contains(kw);
+        if (!matchesName && !matchesBatch && !matchesCat && !matchesMfr) return false;
+      }
+      return true;
     }).toList();
   }
 
-  int get totalActiveItems => _inventory.where((i) => i.status == ItemStatus.active).length;
-  int get expiringSoonCount => _inventory.where((i) => i.status == ItemStatus.active && (i.batch?.isExpiringSoon ?? false)).length;
-  int get expiredCount => _inventory.where((i) => (i.batch?.isExpired ?? false)).length;
-  int get recalledCount => _inventory.where((i) => (i.batch?.isRecalled ?? false)).length;
+  // Dashboard metric counts
+  int get totalActiveMedicines => _medicines.where((m) => m.status == 'active').length;
+  int get expiringSoonCount => _medicines.where((m) => m.status == 'active' && m.isExpiringSoon && !m.isExpired).length;
+  int get lowStockCount => _medicines.where((m) => m.status == 'active' && m.isLowStock).length;
+  int get expiredCount => _medicines.where((m) => m.isExpired).length;
 
-  List<MedicineItem> get recentlyAddedItems {
-    final list = List<MedicineItem>.from(_inventory);
-    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return list.take(5).toList();
+  List<Medicine> get alertMedicines {
+    return _medicines
+        .where((m) => m.status == 'active' && (m.isExpired || m.isExpiringSoon || m.isLowStock || m.isOpenedForLongTime))
+        .toList();
   }
 
-  List<MedicineItem> get upcomingExpiryItems {
-    final list = _inventory.where((i) => i.status == ItemStatus.active && !(i.batch?.isExpired ?? true)).toList();
-    list.sort((a, b) {
-      final dateA = a.batch?.expiryDate ?? DateTime(2099);
-      final dateB = b.batch?.expiryDate ?? DateTime(2099);
-      return dateA.compareTo(dateB);
-    });
-    return list.take(5).toList();
+  // Medicines grouped by family member
+  Map<FamilyMember, List<Medicine>> get medicinesGroupedByFamily {
+    final Map<FamilyMember, List<Medicine>> map = {};
+    for (var member in _familyMembers) {
+      final list = filteredMedicines.where((m) => m.familyMemberId == member.id).toList();
+      if (list.isNotEmpty) {
+        map[member] = list;
+      }
+    }
+    return map;
+  }
+
+  void setSelectedFamilyMember(String? memberId) {
+    _selectedFamilyMemberId = memberId;
+    notifyListeners();
   }
 
   void setSearchQuery(String query) {
     _searchQuery = query;
-    notifyListeners();
-  }
-
-  void setFilter(InventoryFilter filter) {
-    _selectedFilter = filter;
     notifyListeners();
   }
 
@@ -103,6 +94,7 @@ class AppState extends ChangeNotifier {
 
     if (url.isNotEmpty && key.isNotEmpty) {
       try {
+        // ignore: deprecated_member_use
         Supabase.initialize(url: url, anonKey: key);
         _isSupabaseInitialized = true;
       } catch (e) {
@@ -114,12 +106,12 @@ class AppState extends ChangeNotifier {
   void toggleMode(bool useMock) {
     if (useMock) {
       _isMockMode = true;
-      _repository = MockExpiryRepository();
+      _repository = MockMedicineRepository();
       refreshData();
     } else {
       if (_isSupabaseInitialized) {
         _isMockMode = false;
-        _repository = SupabaseExpiryRepository(Supabase.instance.client);
+        _repository = SupabaseMedicineRepository(Supabase.instance.client);
         refreshData();
       } else {
         _errorMessage = 'Supabase credentials not configured. Please supply SUPABASE_URL & SUPABASE_ANON_KEY.';
@@ -134,134 +126,167 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _inventory = await _repository.getInventory();
-      _events = await _repository.getItemEvents();
+      _familyMembers = await _repository.getFamilyMembers();
+      _medicines = await _repository.getMedicines();
     } catch (e) {
-      _errorMessage = 'Failed to load data: ${e.toString()}';
+      _errorMessage = 'Failed to load inventory: ${e.toString()}';
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<MedicineItem?> getItemById(String id) async {
+  Future<Medicine?> getMedicineById(String id) async {
     try {
-      return await _repository.getItemById(id);
+      return await _repository.getMedicineById(id);
     } catch (e) {
-      _errorMessage = 'Failed to fetch item: $e';
+      _errorMessage = 'Failed to fetch record: $e';
       notifyListeners();
       return null;
     }
   }
 
-  Future<MedicineItem?> addMedicine({
-    required String medicineName,
-    required String batchNumber,
-    required DateTime expiryDate,
+  Future<Medicine?> addMedicine({
+    required String name,
+    String? familyMemberId,
+    String? batchNumber,
     String? manufacturer,
-    required int quantity,
+    DateTime? mfgDate,
+    required DateTime expiryDate,
+    required int totalQuantity,
+    required int remainingQuantity,
     required String unit,
+    required String category,
     String? location,
-    String? imagePath,
+    DateTime? dateOpened,
+    String? notes,
+    String? imageFrontUrl,
+    String? imageBackUrl,
   }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final newItem = await _repository.addMedicine(
-        medicineName: medicineName,
+      final newMed = await _repository.addMedicine(
+        name: name,
+        familyMemberId: familyMemberId,
         batchNumber: batchNumber,
-        expiryDate: expiryDate,
         manufacturer: manufacturer,
-        quantity: quantity,
+        mfgDate: mfgDate,
+        expiryDate: expiryDate,
+        totalQuantity: totalQuantity,
+        remainingQuantity: remainingQuantity,
         unit: unit,
+        category: category,
         location: location,
-        imagePath: imagePath,
+        dateOpened: dateOpened,
+        notes: notes,
+        imageFrontUrl: imageFrontUrl,
+        imageBackUrl: imageBackUrl,
       );
       await refreshData();
-      return newItem;
+      return newMed;
     } catch (e) {
-      _errorMessage = 'Error adding medicine: ${e.toString()}';
+      _errorMessage = 'Failed to save medicine: ${e.toString()}';
       _isLoading = false;
       notifyListeners();
       return null;
     }
   }
 
-  Future<List<MedicineItem>?> splitItem({
-    required String parentItemId,
-    required int quantityA,
-    required int quantityB,
-    String? locationA,
-    String? locationB,
-  }) async {
+  Future<bool> markMedicineAsTaken(String id, int quantity, {String? notes}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final children = await _repository.splitItem(
-        parentItemId: parentItemId,
-        quantityA: quantityA,
-        quantityB: quantityB,
-        locationA: locationA,
-        locationB: locationB,
-      );
-      await refreshData();
-      return children;
-    } catch (e) {
-      _errorMessage = 'Split failed: ${e.toString()}';
-      _isLoading = false;
-      notifyListeners();
-      return null;
-    }
-  }
-
-  Future<bool> simulateBatchRecall(String batchId, {String? reason}) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final success = await _repository.flagBatchAsRecalled(batchId, reason: reason);
-      await refreshData();
-      return success;
-    } catch (e) {
-      _errorMessage = 'Recall simulation failed: ${e.toString()}';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  Future<bool> updateMedicineItem(String itemId, {int? quantity, String? location, String? imagePath}) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      await _repository.updateMedicineItem(itemId, quantity: quantity, location: location, imagePath: imagePath);
+      await _repository.markMedicineAsTaken(id, quantity, notes: notes);
       await refreshData();
       return true;
     } catch (e) {
-      _errorMessage = 'Update failed: ${e.toString()}';
+      _errorMessage = 'Failed to log dose consumption: ${e.toString()}';
       _isLoading = false;
       notifyListeners();
       return false;
     }
   }
 
-  MedicineItem? getParentItem(String? parentItemId) {
-    if (parentItemId == null) return null;
+  Future<bool> updateMedicine(
+    String id, {
+    String? name,
+    String? familyMemberId,
+    String? batchNumber,
+    String? manufacturer,
+    DateTime? mfgDate,
+    DateTime? expiryDate,
+    int? totalQuantity,
+    int? remainingQuantity,
+    String? unit,
+    String? category,
+    String? location,
+    DateTime? dateOpened,
+    String? status,
+    String? notes,
+    String? imageFrontUrl,
+    String? imageBackUrl,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
     try {
-      return _inventory.firstWhere((i) => i.id == parentItemId);
-    } catch (_) {
+      await _repository.updateMedicine(
+        id,
+        name: name,
+        familyMemberId: familyMemberId,
+        batchNumber: batchNumber,
+        manufacturer: manufacturer,
+        mfgDate: mfgDate,
+        expiryDate: expiryDate,
+        totalQuantity: totalQuantity,
+        remainingQuantity: remainingQuantity,
+        unit: unit,
+        category: category,
+        location: location,
+        dateOpened: dateOpened,
+        status: status,
+        notes: notes,
+        imageFrontUrl: imageFrontUrl,
+        imageBackUrl: imageBackUrl,
+      );
+      await refreshData();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Failed to update record: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<FamilyMember?> addFamilyMember({required String name, required String relation, String? notes}) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final newMember = await _repository.addFamilyMember(name: name, relation: relation, notes: notes);
+      await refreshData();
+      return newMember;
+    } catch (e) {
+      _errorMessage = 'Failed to add family member: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
       return null;
     }
   }
 
-  List<MedicineItem> getChildItems(String parentItemId) {
-    return _inventory.where((i) => i.parentItemId == parentItemId).toList();
+  Future<List<MedicineHistory>> getMedicineHistory(String medicineId) async {
+    return await _repository.getMedicineHistory(medicineId);
+  }
+
+  Future<List<Medicine>> getArchivedMedicines() async {
+    return await _repository.getArchivedMedicines();
   }
 }

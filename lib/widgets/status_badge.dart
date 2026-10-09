@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-import '../models/medicine_batch.dart';
-import '../models/medicine_item.dart';
+import '../models/medicine.dart';
 import '../theme/app_colors.dart';
 
 enum BadgeType {
-  active,
+  normal,
   expiringSoon,
+  lowStock,
   expired,
-  recalled,
-  split,
+  critical,
 }
 
 class StatusBadge extends StatelessWidget {
@@ -23,34 +22,17 @@ class StatusBadge extends StatelessWidget {
     this.compact = false,
   });
 
-  factory StatusBadge.forItem(MedicineItem item, {bool compact = false}) {
-    final batch = item.batch;
-    if (batch != null && batch.isRecalled) {
-      return StatusBadge(type: BadgeType.recalled, compact: compact);
-    }
-    if (batch != null && batch.isExpired) {
+  factory StatusBadge.forMedicine(Medicine medicine, {bool compact = false}) {
+    if (medicine.isExpired) {
       return StatusBadge(type: BadgeType.expired, compact: compact);
     }
-    if (item.status == ItemStatus.split) {
-      return StatusBadge(type: BadgeType.split, compact: compact);
-    }
-    if (batch != null && batch.isExpiringSoon) {
+    if (medicine.isExpiringSoon) {
       return StatusBadge(type: BadgeType.expiringSoon, compact: compact);
     }
-    return StatusBadge(type: BadgeType.active, compact: compact);
-  }
-
-  factory StatusBadge.forBatch(MedicineBatch batch, {bool compact = false}) {
-    if (batch.isRecalled) {
-      return StatusBadge(type: BadgeType.recalled, compact: compact);
+    if (medicine.isLowStock) {
+      return StatusBadge(type: BadgeType.lowStock, compact: compact);
     }
-    if (batch.isExpired) {
-      return StatusBadge(type: BadgeType.expired, compact: compact);
-    }
-    if (batch.isExpiringSoon) {
-      return StatusBadge(type: BadgeType.expiringSoon, compact: compact);
-    }
-    return StatusBadge(type: BadgeType.active, compact: compact);
+    return StatusBadge(type: BadgeType.normal, compact: compact);
   }
 
   @override
@@ -61,35 +43,35 @@ class StatusBadge extends StatelessWidget {
     String label;
 
     switch (type) {
-      case BadgeType.recalled:
-        bg = AppColors.criticalBg;
-        fg = AppColors.critical;
-        icon = Icons.warning_rounded;
-        label = customLabel ?? 'RECALLED';
-        break;
       case BadgeType.expired:
-        bg = AppColors.criticalBg.withOpacity(0.6);
+        bg = AppColors.criticalBg;
         fg = AppColors.critical;
         icon = Icons.event_busy_rounded;
         label = customLabel ?? 'EXPIRED';
         break;
       case BadgeType.expiringSoon:
-        bg = AppColors.warningBg;
-        fg = AppColors.warning;
+        bg = AppColors.expiringSoonBg;
+        fg = AppColors.expiringSoon;
         icon = Icons.alarm_rounded;
         label = customLabel ?? 'EXPIRING SOON';
         break;
-      case BadgeType.split:
-        bg = AppColors.splitBg;
-        fg = AppColors.split;
-        icon = Icons.alt_route_rounded;
-        label = customLabel ?? 'SPLIT PARENT';
+      case BadgeType.lowStock:
+        bg = AppColors.lowStockBg;
+        fg = AppColors.lowStock;
+        icon = Icons.inventory_2_outlined;
+        label = customLabel ?? 'LOW STOCK';
         break;
-      case BadgeType.active:
-        bg = AppColors.successBg;
-        fg = AppColors.success;
-        icon = Icons.check_circle_rounded;
-        label = customLabel ?? 'ACTIVE';
+      case BadgeType.critical:
+        bg = AppColors.criticalBg;
+        fg = AppColors.critical;
+        icon = Icons.warning_amber_rounded;
+        label = customLabel ?? 'ALERT';
+        break;
+      case BadgeType.normal:
+        bg = AppColors.normalBg;
+        fg = AppColors.normal;
+        icon = Icons.check_circle_outline_rounded;
+        label = customLabel ?? 'OK';
         break;
     }
 
@@ -101,7 +83,7 @@ class StatusBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: fg.withOpacity(0.25), width: 1),
+        border: Border.all(color: fg.withValues(alpha: 0.3), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

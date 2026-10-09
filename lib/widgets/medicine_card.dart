@@ -1,43 +1,48 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import '../models/medicine_item.dart';
+import '../models/medicine.dart';
 import '../theme/app_colors.dart';
-import '../utils/date_formatter.dart';
+import '../utils/date_helpers.dart';
 import 'status_badge.dart';
 
 class MedicineCard extends StatelessWidget {
-  final MedicineItem item;
+  final Medicine medicine;
   final VoidCallback? onTap;
 
   const MedicineCard({
     super.key,
-    required this.item,
+    required this.medicine,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final batch = item.batch;
-    final isRecalled = batch?.isRecalled ?? false;
-    final isExpired = batch?.isExpired ?? false;
+    final member = medicine.familyMember;
+    final isLow = medicine.isLowStock;
+    final isExp = medicine.isExpired;
+    final isExpSoon = medicine.isExpiringSoon;
+
+    Color progressColor = AppColors.primary;
+    if (isExp || isLow) {
+      progressColor = AppColors.lowStock;
+    } else if (isExpSoon) {
+      progressColor = AppColors.expiringSoon;
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isRecalled
-            ? AppColors.criticalBg.withOpacity(0.15)
-            : AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: isRecalled
-              ? AppColors.critical.withOpacity(0.5)
-              : isExpired
-                  ? AppColors.critical.withOpacity(0.3)
-                  : AppColors.cardBorder,
-          width: isRecalled ? 1.5 : 1.0,
+          color: isExp || isLow
+              ? AppColors.lowStock.withValues(alpha: 0.3)
+              : AppColors.cardBorder,
+          width: 1.0,
         ),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x08000000),
+            color: Color(0x06000000),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
@@ -45,10 +50,10 @@ class MedicineCard extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -57,152 +62,158 @@ class MedicineCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Packaging Photo Thumbnail or Icon
                     Container(
-                      width: 44,
-                      height: 44,
+                      width: 48,
+                      height: 48,
                       decoration: BoxDecoration(
-                        color: isRecalled
-                            ? AppColors.criticalBg
-                            : isExpired
-                                ? AppColors.criticalBg.withOpacity(0.5)
-                                : AppColors.accentSoft,
-                        shape: BoxShape.circle,
+                        color: AppColors.lavenderSoft,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.cardBorder),
                       ),
-                      child: Icon(
-                        isRecalled
-                            ? Icons.warning_rounded
-                            : Icons.medication_rounded,
-                        color: isRecalled
-                            ? AppColors.critical
-                            : isExpired
-                                ? AppColors.critical
-                                : AppColors.primary,
-                        size: 24,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: medicine.imageFrontUrl != null && medicine.imageFrontUrl!.isNotEmpty
+                            ? (medicine.imageFrontUrl!.startsWith('assets/')
+                                ? Image.asset(medicine.imageFrontUrl!, fit: BoxFit.cover)
+                                : Image.file(
+                                    File(medicine.imageFrontUrl!),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (c, e, s) => const Icon(
+                                      Icons.medication_rounded,
+                                      color: AppColors.primary,
+                                      size: 24,
+                                    ),
+                                  ))
+                            : const Icon(
+                                Icons.medication_rounded,
+                                color: AppColors.primary,
+                                size: 24,
+                              ),
                       ),
                     ),
                     const SizedBox(width: 12),
+
+                    // Title & Assigned Family Member
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            batch?.medicineName ?? 'Unknown Medicine',
-                            style: TextStyle(
+                            medicine.name,
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
-                              color: isRecalled
-                                  ? AppColors.critical
-                                  : AppColors.textPrimary,
+                              color: AppColors.textPrimary,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 3),
+                          const SizedBox(height: 4),
                           Row(
                             children: [
+                              if (member != null) ...[
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: member.avatarBgColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(member.defaultIcon, size: 12, color: member.avatarBgColor),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        member.name,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: member.avatarBgColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
                               Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: AppColors.background,
                                   borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                      color: AppColors.cardBorder),
+                                  border: Border.all(color: AppColors.cardBorder),
                                 ),
                                 child: Text(
-                                  'BATCH: ${batch?.batchNumber ?? "N/A"}',
+                                  medicine.category,
                                   style: const TextStyle(
-                                    fontSize: 11,
+                                    fontSize: 10,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.textSecondary,
                                   ),
                                 ),
                               ),
-                              if (item.parentItemId != null) ...[
-                                const SizedBox(width: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.splitBg,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: const Text(
-                                    'CHILD PORTION',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.split,
-                                    ),
-                                  ),
-                                ),
-                              ],
                             ],
                           ),
                         ],
                       ),
                     ),
-                    StatusBadge.forItem(item, compact: true),
+                    StatusBadge.forMedicine(medicine, compact: true),
                   ],
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Divider(height: 1, color: AppColors.cardBorder),
-                ),
-                Row(
+
+                const SizedBox(height: 14),
+
+                // Remaining Quantity Progress Bar
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          const Icon(Icons.inventory_2_outlined,
-                              size: 16, color: AppColors.textSecondary),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${item.quantity} ${item.unit}',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '${medicine.remainingQuantity} / ${medicine.totalQuantity} ${medicine.unit} left',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: isLow ? AppColors.lowStock : AppColors.textPrimary,
                           ),
-                        ],
-                      ),
+                        ),
+                        Text(
+                          '${(medicine.stockProgress * 100).toInt()}%',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: isLow ? AppColors.lowStock : AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          const Icon(Icons.place_outlined,
-                              size: 16, color: AppColors.textSecondary),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              item.location ?? 'Unspecified',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textSecondary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: medicine.stockProgress,
+                        backgroundColor: AppColors.lavenderSoft,
+                        color: progressColor,
+                        minHeight: 6,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+
+                const SizedBox(height: 12),
+
+                // Expiry Date Footer
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.calendar_today_outlined,
-                            size: 14, color: AppColors.textMuted),
+                        const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textMuted),
                         const SizedBox(width: 4),
                         Text(
-                          batch != null
-                              ? 'Exp: ${DateFormatter.format(batch.expiryDate)}'
-                              : 'No expiry date',
+                          'Exp: ${DateHelpers.format(medicine.expiryDate)}',
                           style: const TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
@@ -210,19 +221,18 @@ class MedicineCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    if (batch != null)
-                      Text(
-                        DateFormatter.daysRemainingText(batch.expiryDate),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: batch.isExpired
-                              ? AppColors.critical
-                              : batch.isExpiringSoon
-                                  ? AppColors.warning
-                                  : AppColors.success,
-                        ),
+                    Text(
+                      DateHelpers.daysRemainingText(medicine.expiryDate),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isExp
+                            ? AppColors.critical
+                            : isExpSoon
+                                ? AppColors.expiringSoon
+                                : AppColors.normal,
                       ),
+                    ),
                   ],
                 ),
               ],
