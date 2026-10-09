@@ -361,30 +361,32 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           initialValue: _selectedFamilyMemberId,
+                          isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Assigned Member',
                             prefixIcon: Icon(Icons.person_outline_rounded),
                           ),
-                          hint: const Text('Select Member'),
+                          hint: const Text('Select Member', overflow: TextOverflow.ellipsis),
                           items: state.familyMembers.map((m) {
                             return DropdownMenuItem(
                               value: m.id,
-                              child: Text(m.name),
+                              child: Text(m.name, overflow: TextOverflow.ellipsis),
                             );
                           }).toList(),
                           onChanged: (val) => setState(() => _selectedFamilyMemberId = val),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           initialValue: _selectedCategory,
+                          isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Category',
                             prefixIcon: Icon(Icons.category_outlined),
                           ),
                           items: _categories.map((cat) {
-                            return DropdownMenuItem(value: cat, child: Text(cat));
+                            return DropdownMenuItem(value: cat, child: Text(cat, overflow: TextOverflow.ellipsis));
                           }).toList(),
                           onChanged: (val) {
                             if (val != null) setState(() => _selectedCategory = val);
@@ -402,7 +404,7 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Quantity Row
+                  // Quantity Row (Total & Remaining Qty)
                   Row(
                     children: [
                       Expanded(
@@ -410,7 +412,8 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                           controller: _totalQtyController,
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(
-                            labelText: 'Total Pack Qty *',
+                            labelText: 'Total Qty *',
+                            hintText: 'e.g. 30',
                             prefixIcon: Icon(Icons.inventory_2_outlined),
                           ),
                           validator: (val) {
@@ -420,13 +423,14 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                           },
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: TextFormField(
                           controller: _remainingQtyController,
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(
-                            labelText: 'Remaining Qty *',
+                            labelText: 'Remaining *',
+                            hintText: 'e.g. 30',
                             prefixIcon: Icon(Icons.pin_outlined),
                           ),
                           validator: (val) {
@@ -436,18 +440,23 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                           },
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _selectedUnit,
-                          decoration: const InputDecoration(labelText: 'Unit'),
-                          items: _units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
-                          onChanged: (val) {
-                            if (val != null) setState(() => _selectedUnit = val);
-                          },
-                        ),
-                      ),
                     ],
+                  ),
+
+                  const SizedBox(height: 14),
+
+                  // Unit Dropdown Row
+                  DropdownButtonFormField<String>(
+                    initialValue: _selectedUnit,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Unit / Form',
+                      prefixIcon: Icon(Icons.medication_rounded),
+                    ),
+                    items: _units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _selectedUnit = val);
+                    },
                   ),
 
                   const SizedBox(height: 14),
@@ -460,17 +469,19 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                           onTap: () => _selectDate(context, _mfgDate, (d) => setState(() => _mfgDate = d)),
                           child: InputDecorator(
                             decoration: const InputDecoration(
-                              labelText: 'Mfg Date (Optional)',
+                              labelText: 'Mfg Date',
                               prefixIcon: Icon(Icons.calendar_today_outlined),
                             ),
                             child: Text(
                               _mfgDate != null ? DateHelpers.format(_mfgDate!) : 'Select Date',
-                              style: TextStyle(color: _mfgDate != null ? AppColors.textPrimary : AppColors.textMuted, fontSize: 13),
+                              style: TextStyle(color: _mfgDate != null ? AppColors.textPrimary : AppColors.textMuted, fontSize: 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: InkWell(
                           onTap: () => _selectDate(context, _expiryDate, (d) => setState(() => _expiryDate = d)),
@@ -481,7 +492,9 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                             ),
                             child: Text(
                               _expiryDate != null ? DateHelpers.format(_expiryDate!) : 'Select Date',
-                              style: TextStyle(color: _expiryDate != null ? AppColors.textPrimary : AppColors.textMuted, fontSize: 13),
+                              style: TextStyle(color: _expiryDate != null ? AppColors.textPrimary : AppColors.textMuted, fontSize: 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
@@ -499,12 +512,12 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                           controller: _locationController,
                           decoration: const InputDecoration(
                             labelText: 'Storage Location',
-                            hintText: 'e.g. Grandma Room Shelf',
+                            hintText: 'Cabinet',
                             prefixIcon: Icon(Icons.place_outlined),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: InkWell(
                           onTap: () => _selectDate(context, _dateOpened, (d) => setState(() => _dateOpened = d)),
@@ -515,7 +528,9 @@ class _AddMedicineScreenState extends State<AddMedicineScreen> {
                             ),
                             child: Text(
                               _dateOpened != null ? DateHelpers.format(_dateOpened!) : 'Select Date',
-                              style: TextStyle(color: _dateOpened != null ? AppColors.textPrimary : AppColors.textMuted, fontSize: 13),
+                              style: TextStyle(color: _dateOpened != null ? AppColors.textPrimary : AppColors.textMuted, fontSize: 12),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
@@ -597,6 +612,8 @@ class _PhotoTile extends StatelessWidget {
         Text(
           title,
           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 6),
         Container(

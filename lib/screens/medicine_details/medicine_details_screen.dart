@@ -287,10 +287,15 @@ class _MedicineDetailsScreenState extends State<MedicineDetailsScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  'Remaining Quantity: ${medicine.remainingQuantity} / ${medicine.totalQuantity} ${medicine.unit}',
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                                Expanded(
+                                  child: Text(
+                                    'Remaining Quantity: ${medicine.remainingQuantity} / ${medicine.totalQuantity} ${medicine.unit}',
+                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
+                                const SizedBox(width: 8),
                                 Text(
                                   '${(medicine.stockProgress * 100).toInt()}%',
                                   style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/app_state.dart';
+import '../../services/ocr_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/medicine_card.dart';
 import '../medicine_details/medicine_details_screen.dart';
@@ -21,6 +22,8 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
   final ImagePicker _picker = ImagePicker();
 
   File? _searchImage;
+  OcrResult? _ocrResult;
+  bool _isScanningOcr = false;
 
   @override
   void initState() {
@@ -45,9 +48,20 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
       );
 
       if (picked != null) {
+        final imgFile = File(picked.path);
         setState(() {
-          _searchImage = File(picked.path);
+          _searchImage = imgFile;
+          _isScanningOcr = true;
+          _ocrResult = null;
         });
+
+        final res = await OcrService.processPackageImage(imgFile);
+        if (mounted) {
+          setState(() {
+            _ocrResult = res;
+            _isScanningOcr = false;
+          });
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -254,6 +268,79 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
                     ),
 
                     if (_searchImage != null) ...[
+                      if (_isScanningOcr) ...[
+                        const SizedBox(height: 20),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.cardBorder),
+                          ),
+                          child: const Row(
+                            children: [
+                              SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                              SizedBox(width: 12),
+                              Text('Extracting packaging text (OCR)...', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                            ],
+                          ),
+                        ),
+                      ] else if (_ocrResult != null) ...[
+                        const SizedBox(height: 20),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                            boxShadow: const [
+                              BoxShadow(color: Color(0x06000000), blurRadius: 8, offset: Offset(0, 2)),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.document_scanner_outlined, color: AppColors.primary, size: 20),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Extracted Packaging Text (OCR)',
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary),
+                                  ),
+                                  const Spacer(),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.normalBg,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      '${(_ocrResult!.confidence * 100).toInt()}% match',
+                                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.normal),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.background,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: AppColors.cardBorder),
+                                ),
+                                child: Text(
+                                  _ocrResult!.rawText,
+                                  style: const TextStyle(fontSize: 12, color: AppColors.textPrimary),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 24),
                       const Text(
                         'Matched Inventory Records',

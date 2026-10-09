@@ -274,12 +274,16 @@ class HomeScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          '${state.familyMembers.firstWhere((f) => f.id == state.selectedFamilyMemberId).name}\'s Medicines',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                        Expanded(
+                          child: Text(
+                            '${state.familyMembers.firstWhere((f) => f.id == state.selectedFamilyMemberId).name}\'s Medicines',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         TextButton(
@@ -313,23 +317,29 @@ class HomeScreen extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 12,
-                                    backgroundColor: member.avatarBgColor,
-                                    child: Icon(member.defaultIcon, size: 14, color: Colors.white),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '${member.name}\'s Medicines',
-                                    style: const TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 12,
+                                      backgroundColor: member.avatarBgColor,
+                                      child: Icon(member.defaultIcon, size: 14, color: Colors.white),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        '${member.name}\'s Medicines',
+                                        style: const TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                               TextButton(
                                 onPressed: () => state.setSelectedFamilyMember(member.id),
